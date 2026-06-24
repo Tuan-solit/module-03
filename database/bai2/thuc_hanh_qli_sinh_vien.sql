@@ -31,5 +31,7 @@ sub_id int not null,
 student_id int not null,
 unique(sub_id, student_id),
 mark float default(0) check (mark between 0 and 100),
-exam_time tinyint default(1)
+exam_time tinyint default(1),
+foreign key (student_id) references student(student_id),
+foreign key (sub_id) references `subject`(sub_id)
 );

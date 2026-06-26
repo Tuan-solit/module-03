@@ -228,4 +228,60 @@ group by kh.khach_hang_id, kh.ho_ten
 order by so_lan_dat_phong asc;
 
 -- cau 5
-select kh.khach_hang_id, kh.ho_ten, lk.ten_loai_khach, hd.hop_dong_id, dv.ten_dich_vu, 
+select kh.khach_hang_id,
+ kh.ho_ten,
+ lk.ten_loai_khach,
+ hd.hop_dong_id,
+ dv.ten_dich_vu,
+ hd.ngay_lam_hop_dong,
+ hd.ngay_ket_thuc, 
+ sum(dv.chi_phi_thue + (hdct.so_luong * dvdk.gia)) as tong_tien 
+from khach_hang kh
+left join loai_khach lk on kh.loai_khach_id = lk.loai_khach_id
+left join hop_dong hd on kh.khach_hang_id = hd.khach_hang_id
+left join dich_vu dv on hd.dich_vu_id = dv.dich_vu_id
+left join hop_dong_chi_tiet hdct on hdct.hop_dong_id = hd.hop_dong_id
+left join dich_vu_di_kem dvdk on hdct.dich_vu_di_kem_id = dvdk.dich_vu_di_kem_id
+group by kh.khach_hang_id,
+ kh.ho_ten,
+ lk.ten_loai_khach,
+ hd.hop_dong_id,
+ dv.ten_dich_vu,
+ hd.ngay_lam_hop_dong,
+ hd.ngay_ket_thuc;
+
+-- cau 6
+select dv.dich_vu_id, dv.ten_dich_vu, dv.dien_tich, dv.chi_phi_thue, ldv.ten_loai_dich_vu
+from dich_vu dv
+join loai_dich_vu ldv on dv.loai_dich_vu_id = ldv.loai_dich_vu_id
+left join hop_dong hd on dv.dich_vu_id = hd.dich_vu_id
+and month(ngay_lam_hop_dong) in (1,2,3)
+and year(ngay_lam_hop_dong) = 2021
+where hd.dich_vu_id is null;
+
+-- cau 7
+select distinct dv.dich_vu_id, dv.ten_dich_vu, dv.dien_tich, dv.so_nguoi_toi_da, dv.chi_phi_thue, ldv.ten_loai_dich_vu
+from dich_vu dv
+join loai_dich_vu ldv on dv.loai_dich_vu_id = ldv.loai_dich_vu_id
+join hop_dong hd on dv.dich_vu_id = hd.dich_vu_id 
+where year(hd.ngay_lam_hop_dong) = 2020
+and dv.dich_vu_id not in (
+	select dich_vu_id
+    from hop_dong
+    where year(ngay_lam_hop_dong) = 2021
+);
+
+-- cau 8
+-- c1
+select ho_ten from khach_hang;
+
+-- cau 9
+select month(ngay_lam_hop_dong) as thang, count(khach_hang_id) as so_luong_khach_hang
+from hop_dong
+where year(ngay_lam_hop_dong) = 2021
+group by month(ngay_lam_hop_dong)
+order by thang asc;
+
+-- cau 10
+select hd.hop_dong_id, hd.ngay_lam_hop_dong, hd.ngay_ket_thuc, hd.tien_dat_coc
+

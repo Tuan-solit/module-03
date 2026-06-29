@@ -283,5 +283,149 @@ group by month(ngay_lam_hop_dong)
 order by thang asc;
 
 -- cau 10
-select hd.hop_dong_id, hd.ngay_lam_hop_dong, hd.ngay_ket_thuc, hd.tien_dat_coc
+select distinct hd.hop_dong_id, hd.ngay_lam_hop_dong, hd.ngay_ket_thuc, hd.tien_dat_coc, ifnull(bang_ao.so_luong, 0) as so_luong_dich_vu_di_kem
+from hop_dong hd
+left join hop_dong_chi_tiet hdct on hd.hop_dong_id = hdct.hop_dong_id
+left join (select hop_dong_id, sum(so_luong) as so_luong
+	  from hop_dong_chi_tiet
+      group by hop_dong_id
+)as bang_ao on hd.hop_dong_id = bang_ao.hop_dong_id;
 
+-- cau 11
+select dvdk.* 
+from dich_vu_di_kem dvdk
+join hop_dong_chi_tiet hdct
+on dvdk.dich_vu_di_kem_id = hdct.dich_vu_di_kem_id
+join hop_dong hd
+on hdct.hop_dong_id = hd.hop_dong_id
+join khach_hang kh
+on hd.khach_hang_id = kh.khach_hang_id
+join loai_khach lk
+on kh.loai_khach_id = lk.loai_khach_id
+where (lk.ten_loai_khach = 'Diamond') 
+and (kh.dia_chi like '%Vinh%' or kh.dia_chi like '%Quảng Ngãi%');
+
+-- cau 12
+select hd.hop_dong_id, nv.ho_ten as ho_ten_nv, kh.ho_ten as ho_ten_khach, kh.so_dien_thoai as sdt_khach,dv.dich_vu_id, dv.ten_dich_vu, bang_hdct.so_luong, hd.tien_dat_coc
+from hop_dong hd
+left join nhan_vien nv on hd.nhan_vien_id = nv.nhan_vien_id
+left join khach_hang kh on hd.khach_hang_id = kh.khach_hang_id
+left join dich_vu dv on hd.dich_vu_id = dv.dich_vu_id
+left join (
+	select hop_dong_id, sum(so_luong) as so_luong
+    from hop_dong_chi_tiet 
+    group by hop_dong_id
+) as bang_hdct on bang_hdct.hop_dong_id = hd.hop_dong_id
+where month(hd.ngay_lam_hop_dong) in (10,11,12)
+and year (hd.ngay_lam_hop_dong) = 2020
+and dv.dich_vu_id not in(
+select dich_vu_id
+from hop_dong
+where year(ngay_lam_hop_dong) = 2021
+);
+
+-- cau 13
+select
+    dvdk.dich_vu_di_kem_id,
+    dvdk.ten_dich_vu_di_kem,
+    sum(hdct.so_luong) as so_luong_dich_vu_di_kem
+from dich_vu_di_kem dvdk
+join hop_dong_chi_tiet hdct
+    on dvdk.dich_vu_di_kem_id = hdct.dich_vu_di_kem_id
+group by
+    dvdk.dich_vu_di_kem_id,
+    dvdk.ten_dich_vu_di_kem
+having sum(hdct.so_luong) = (
+    select max(tong_so_luong)
+    from (
+        select
+            sum(so_luong) as tong_so_luong
+        from hop_dong_chi_tiet
+        group by dich_vu_di_kem_id
+    ) temp
+);
+
+-- cau 14
+select
+    hd.hop_dong_id,
+    ldv.ten_loai_dich_vu,
+    dvdk.ten_dich_vu_di_kem,
+    count(hdct.dich_vu_di_kem_id) as so_lan_su_dung
+from hop_dong hd
+join dich_vu dv on hd.dich_vu_id = dv.dich_vu_id
+join loai_dich_vu ldv on dv.loai_dich_vu_id = ldv.loai_dich_vu_id
+join hop_dong_chi_tiet hdct on hd.hop_dong_id = hdct.hop_dong_id
+join dich_vu_di_kem dvdk on hdct.dich_vu_di_kem_id = dvdk.dich_vu_di_kem_id
+group by
+    hd.hop_dong_id,
+    ldv.ten_loai_dich_vu,
+    dvdk.ten_dich_vu_di_kem
+having count(hdct.dich_vu_di_kem_id)=1;
+
+-- cau 15
+select
+    nv.nhan_vien_id,
+    nv.ho_ten,
+    td.ten_trinh_do,
+    bp.ten_bo_phan,
+    nv.so_dien_thoai,
+    nv.dia_chi
+from nhan_vien nv
+join trinh_do td
+on nv.trinh_do_id = td.trinh_do_id
+join bo_phan bp
+on nv.bo_phan_id = bp.bo_phan_id
+left join hop_dong hd
+on nv.nhan_vien_id = hd.nhan_vien_id
+and year(hd.ngay_lam_hop_dong) between 2020 and 2021
+group by
+    nv.nhan_vien_id,
+    nv.ho_ten,
+    td.ten_trinh_do,
+    bp.ten_bo_phan,
+    nv.so_dien_thoai,
+    nv.dia_chi
+having count(hd.hop_dong_id) <= 3;
+
+-- cau 16
+delete from nhan_vien
+where not exists (
+    select *
+    from (
+        select
+            nv.nhan_vien_id
+        from nhan_vien nv
+        join hop_dong hd
+            on nv.nhan_vien_id = hd.nhan_vien_id
+        where year(hd.ngay_lam_hop_dong) between 2019 and 2021
+        group by nv.nhan_vien_id
+    ) t
+    where t.nhan_vien_id = nhan_vien.nhan_vien_id
+);
+
+-- cau 17
+update khach_hang
+set loai_khach_id = (
+    select loai_khach_id
+    from loai_khach
+    where ten_loai_khach = 'Diamond'
+)
+where khach_hang_id in (
+    select *
+    from (
+        select hd.khach_hang_id
+        from hop_dong hd
+        join dich_vu dv on hd.dich_vu_id = dv.dich_vu_id
+        left join hop_dong_chi_tiet hdct on hd.hop_dong_id = hdct.hop_dong_id
+        left join dich_vu_di_kem dvdk on hdct.dich_vu_di_kem_id = dvdk.dich_vu_di_kem_id
+        where year(hd.ngay_lam_hop_dong)=2021
+        group by
+            hd.hop_dong_id,
+            hd.khach_hang_id,
+            dv.chi_phi_thue
+        having
+            dv.chi_phi_thue
+            + ifnull(sum(hdct.so_luong*dvdk.gia),0)
+            >10000000
+    ) t
+);
